@@ -1,5 +1,18 @@
-# Vue 3 + Vite
+# MARD拼豆图纸生成器
+最近拼豆很火啊，我女朋友也是疯狂迷恋上了这个小玩具，利用闲暇时间也是给她写了个生成拼豆图纸的小工具（谁叫我宠她）
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+技术栈：Vue3+Element plus
+在线地址：[点我](https://beads.dro9an.top)
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+ps：纯前端写的一个小项目，支持MARD豆以下色系： 
+> 24
+48
+72
+96
+120
+144
+221
+264
+291(完整)
+
+拼豆板大小除预设外，也支持自定义拼豆板大小，欢迎大家提issue持续改进本项目！
