@@ -1,0 +1,21 @@
+# Robots.txt for dro9an.top
+
+User-agent: Baiduspider
+Disallow: /
+
+User-agent: *
+Disallow: /easter-egg/
+Disallow: /*.jpg$
+Disallow: /*.jpeg$
+Disallow: /*.png$
+Disallow: /*.gif$
+Disallow: /*.bmp$
+Disallow: /*.webp$
+Disallow: /*.mp4$
+Disallow: /*.avi$
+Disallow: /*.mov$
+Disallow: /*.mp3$
+Disallow: /*.wav$
+Disallow: /*.pdf$
+Disallow: /*.zip$
+Disallow: /*.rar$
