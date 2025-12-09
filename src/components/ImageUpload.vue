@@ -8,6 +8,7 @@
       :before-upload="beforeUpload"
       list-type="picture-card"
       :show-file-list="false"
+      accept="image/jpg,image/jpeg,image/png"
     >
       <template #default>
         <el-image
