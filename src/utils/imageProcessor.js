@@ -4,23 +4,41 @@
 export const pixelateImage = (imageUrl, width, height) => {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    img.crossOrigin = "anonymous";
     img.onload = () => {
       // 创建canvas元素
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
       // 设置canvas尺寸为目标尺寸
       canvas.width = width;
       canvas.height = height;
-      
-      // 先将图像绘制到canvas上，会自动缩放
-      ctx.drawImage(img, 0, 0, width, height);
-      
+      // 计算缩放比例和绘制位置
+      let drawWidth, drawHeight;
+      let offsetX = 0,
+        offsetY = 0;
+
+      if (img.width > img.height) {
+        // 按宽度缩放
+        drawWidth = width;
+        drawHeight = (img.height / img.width) * width;
+        // 垂直居中
+        offsetY = (height - drawHeight) / 2;
+      } else {
+        // 按高度缩放
+        drawHeight = height;
+        drawWidth = (img.width / img.height) * height;
+        // 水平居中
+        offsetX = (width - drawWidth) / 2;
+      }
+
+      // 绘制图像
+      ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+
       // 获取图像数据
       const imageData = ctx.getImageData(0, 0, width, height);
       const data = imageData.data;
-      
+
       // 提取像素颜色信息
       const pixels = [];
       for (let y = 0; y < height; y++) {
@@ -31,7 +49,7 @@ export const pixelateImage = (imageUrl, width, height) => {
           const g = data[index + 1];
           const b = data[index + 2];
           const a = data[index + 3];
-          
+
           // 忽略透明像素，默认白色
           if (a < 128) {
             row.push([255, 255, 255]);
@@ -41,12 +59,12 @@ export const pixelateImage = (imageUrl, width, height) => {
         }
         pixels.push(row);
       }
-      
+
       resolve({
         pixels,
         width,
         height,
-        canvas
+        canvas,
       });
     };
     img.onerror = (error) => {
