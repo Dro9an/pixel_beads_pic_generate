@@ -68,7 +68,7 @@
     </main>
 
     <footer>
-      <p>© 2025 Dro9an. All rights reserved.</p>
+      <p>© {{ new Date().getUTCFullYear() }} Dro9an. All rights reserved.</p>
       <p>Made with ❤️</p>
     </footer>
   </div>
