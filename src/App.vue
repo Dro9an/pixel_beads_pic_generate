@@ -68,7 +68,7 @@
     </main>
 
     <footer>
-      <p>© {{ new Date().getUTCFullYear() }} Dro9an. All rights reserved.</p>
+      <p>© 2025-{{ new Date().getUTCFullYear() }} Dro9an. All rights reserved.</p>
       <p>Made with ❤️</p>
     </footer>
   </div>
