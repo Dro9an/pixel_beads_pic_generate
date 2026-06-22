@@ -1,7 +1,7 @@
 <template>
   <div class="app-container">
     <header>
-      <h1>🍃专属拼豆图纸生成器</h1>
+      <h1>MARD拼豆图纸生成器</h1>
       <p>1.上传图片 2.选择尺寸与色系 3.生成and enjoy!</p>
     </header>
 
