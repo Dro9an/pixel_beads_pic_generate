@@ -82,7 +82,7 @@ const pixelateImage = (imageUrl, width, height) => {
  * @param {number} gridWidth 图纸宽度（格数）
  * @param {number} gridHeight 图纸高度（格数）
  * @param {string|number} colorCount 色数档位（如 96）
- * @returns {Promise<string>} 最终图纸的URL（PNG dataURL，预览与下载共用）
+ * @returns {Promise<string[]>} 图纸分片的URL数组（PNG dataURL，预览与下载共用，未超限时长度为 1）
  */
 export const generatePattern = async (
   imageUrl,
@@ -124,151 +124,164 @@ export const generatePattern = async (
   // 总豆子数 = 各颜色数量之和
   const totalBeads = sortedColors.reduce((sum, color) => sum + color.count, 0);
 
-  // 创建导出用的canvas
-  const canvas = document.createElement("canvas");
-  const cellSize = 30; // 导出时的单元格大小
-  const padding = 40; // 边框留白
-  const width = pixelData[0].length * cellSize + padding * 2;
-  const height = pixelData.length * cellSize + padding * 2;
+  // 导出渲染：单元格固定 60px、色号固定 27px，不随格数缩小，
+  // 保证放大查看时色号始终清晰可见且永不省略。
+  // 大格数时单张 canvas 会超出浏览器安全上限（Safari/iOS：单边 4096px、
+  // 总面积约 1677 万像素，超限时 toDataURL 输出损坏图片），
+  // 因此自动按行/列均衡切成多张分片，最后一张附带豆子统计。
+  const CELL_SIZE = 60; // 每个单元格渲染尺寸（px）
+  const PADDING = 40; // 边框留白
+  const MAX_DIM = 4096; // 单张画布单边安全上限
+  const fontSize = 27; // 色号字号（CELL_SIZE * 0.45）
 
-  canvas.width = width;
-  canvas.height = height;
+  // 每张分片单边可容纳的最大格数
+  const maxCellsPerTile = Math.floor((MAX_DIM - PADDING * 2) / CELL_SIZE);
 
-  const ctx = canvas.getContext("2d");
+  // 列方向均衡分片
+  const colChunks = Math.ceil(pixelData[0].length / maxCellsPerTile);
+  const colsPerTile = Math.ceil(pixelData[0].length / colChunks);
 
-  // 绘制背景
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, width, height);
-
-  // 绘制像素网格
-  for (let y = 0; y < pixelData.length; y++) {
-    for (let x = 0; x < pixelData[y].length; x++) {
-      const pixel = pixelData[y][x];
-      const px = x * cellSize + padding;
-      const py = y * cellSize + padding;
-
-      // 绘制单元格
-      ctx.fillStyle = `rgb(${pixel.rgb[0]}, ${pixel.rgb[1]}, ${pixel.rgb[2]})`;
-      ctx.fillRect(px, py, cellSize, cellSize);
-
-      // 绘制边框
-      ctx.strokeStyle = "#cccccc";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(px, py, cellSize, cellSize);
-
-      // 根据网格大小动态调整字体大小
-      let fontSize = 14;
-      if (pixelData.length > 100) fontSize = 6;
-      else if (pixelData.length > 80) fontSize = 8;
-      else if (pixelData.length > 60) fontSize = 10;
-      else if (pixelData.length > 50) fontSize = 12;
-
-      // 绘制色号(深色背景文字为白色，浅色背景文字为黑色)
-      ctx.fillStyle =
-        pixel.rgb.reduce((acc, val) => acc + val, 0) > 300
-          ? "#000000"
-          : "#ffffff";
-      ctx.font = `bold ${fontSize}px Arial`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(pixel.code, px + cellSize / 2, py + cellSize / 2);
-    }
-  }
-
-  // 统计信息（sortedColors 已按数量降序）
+  // 统计区只绘制在右下角分片，其高度按该分片宽度计算，并折算为虚拟行参与行方向均分
+  const lastColChunkCols = pixelData[0].length - (colChunks - 1) * colsPerTile;
+  const statsTileWidth = lastColChunkCols * CELL_SIZE + PADDING * 2;
   const itemWidth = 110; // 每个统计项宽度
   const itemHeight = 25; // 每个统计项高度
-  const itemsPerRow = Math.floor((canvas.width - padding * 2) / itemWidth);
-  const rows = Math.ceil(sortedColors.length / itemsPerRow);
-  const statsHeight = 10 + rows * itemHeight; // 总数量、颜色列表的总高度
+  const itemsPerRow =
+    Math.floor((statsTileWidth - PADDING * 2) / itemWidth) || 1;
+  const statsHeight =
+    10 + Math.ceil(sortedColors.length / itemsPerRow) * itemHeight;
+  const statsRows = Math.ceil(statsHeight / CELL_SIZE); // 统计区折算占用的格数
 
-  // 创建临时canvas保存原始内容
-  const tempCanvas = document.createElement("canvas");
-  tempCanvas.width = canvas.width;
-  tempCanvas.height = canvas.height;
-  const tempCtx = tempCanvas.getContext("2d");
-  tempCtx.drawImage(canvas, 0, 0);
+  // 行方向均衡分片
+  const totalVirtualRows = pixelData.length + statsRows;
+  const rowChunks =
+    totalVirtualRows <= maxCellsPerTile
+      ? 1
+      : Math.ceil(totalVirtualRows / maxCellsPerTile);
+  const rowsPerTile = Math.ceil(totalVirtualRows / rowChunks);
 
-  // 调整原canvas高度以容纳统计信息
-  canvas.height += statsHeight;
+  // 逐分片绘制
+  const tileUrls = [];
+  for (let rowChunk = 0; rowChunk < rowChunks; rowChunk++) {
+    for (let colChunk = 0; colChunk < colChunks; colChunk++) {
+      const isLast =
+        rowChunk === rowChunks - 1 && colChunk === colChunks - 1;
 
-  // 重新绘制原始内容
-  ctx.drawImage(tempCanvas, 0, 0);
+      const startRow = rowChunk * rowsPerTile;
+      // 最后一张分片需扣除统计区占用的虚拟行
+      const endRow = Math.min(
+        startRow + (rowChunk === rowChunks - 1 ? rowsPerTile - statsRows : rowsPerTile),
+        pixelData.length,
+      );
+      const gridRows = Math.max(0, endRow - startRow);
 
-  // 绘制统计信息背景
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, tempCanvas.height, canvas.width, statsHeight);
+      const startCol = colChunk * colsPerTile;
+      const endCol = Math.min(startCol + colsPerTile, pixelData[0].length);
+      const gridCols = endCol - startCol;
 
-  // 绘制统计信息
-  ctx.fillStyle = "#000000";
-  ctx.font = "bold 18px Arial";
-  ctx.textAlign = "left";
-  ctx.textBaseline = "top";
+      const width = gridCols * CELL_SIZE + PADDING * 2;
+      const height =
+        gridRows * CELL_SIZE + PADDING * 2 + (isLast ? statsHeight : 0);
 
-  // 绘制总豆子数
-  ctx.font = "bold 16px Arial";
-  ctx.fillText(`总豆子数: ${totalBeads}颗`, padding, tempCanvas.height - 25);
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
 
-  // 绘制颜色统计列表
-  const statsStartX = padding;
-  const statsStartY = tempCanvas.height;
+      // 绘制背景
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
 
-  ctx.font = "14px Arial";
-  ctx.fillStyle = "#000000";
+      // 绘制像素网格与色号
+      for (let y = startRow; y < endRow; y++) {
+        for (let x = startCol; x < endCol; x++) {
+          const pixel = pixelData[y][x];
+          const px = (x - startCol) * CELL_SIZE + PADDING;
+          const py = (y - startRow) * CELL_SIZE + PADDING;
 
-  sortedColors.forEach((color, index) => {
-    // 计算当前项位置
-    const row = Math.floor(index / itemsPerRow);
-    const col = index % itemsPerRow;
-    const x = statsStartX + col * itemWidth;
-    const y = statsStartY + row * itemHeight;
+          // 绘制单元格
+          ctx.fillStyle = `rgb(${pixel.rgb[0]}, ${pixel.rgb[1]}, ${pixel.rgb[2]})`;
+          ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
 
-    // 绘制颜色块
-    ctx.fillStyle = `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`;
-    ctx.fillRect(x, y, 18, 18);
+          // 绘制边框
+          ctx.strokeStyle = "#cccccc";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(px, py, CELL_SIZE, CELL_SIZE);
 
-    // 绘制色号和数量
-    ctx.fillStyle = "#000000";
-    ctx.textAlign = "left";
-    ctx.fillText(`${color.code}:${color.count}颗`, x + 25, y + 3);
-  });
+          // 绘制色号(深色背景文字为白色，浅色背景文字为黑色)
+          ctx.fillStyle =
+            pixel.rgb.reduce((acc, val) => acc + val, 0) > 300
+              ? "#000000"
+              : "#ffffff";
+          ctx.font = `bold ${fontSize}px Arial`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(pixel.code, px + CELL_SIZE / 2, py + CELL_SIZE / 2);
+        }
+      }
 
-  // 添加斜向重复水印
-  ctx.save();
-  ctx.fillStyle = "rgba(150, 150, 150, 0.5)";
-  ctx.font = "bold 24px Arial";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
+      // 右下角分片绘制统计信息
+      if (isLast) {
+        const statsStartX = PADDING;
+        const statsStartY = gridRows * CELL_SIZE + PADDING * 2;
 
-  // 水印文本
-  const watermarkText = "@Dro9an";
+        ctx.fillStyle = "#000000";
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
 
-  // 计算水印旋转角度和间隔
-  const angle = Math.PI / 6; // 30度
-  const textWidth = ctx.measureText(watermarkText).width;
-  const spacing = Math.max(textWidth, 100) * 1.5;
+        // 绘制总豆子数
+        ctx.font = "bold 16px Arial";
+        ctx.fillText(`总豆子数: ${totalBeads}颗`, PADDING, statsStartY - 25);
 
-  // 平移原点到中心，方便旋转
-  ctx.translate(width / 2, height / 2);
-  ctx.rotate(angle);
+        // 绘制颜色统计列表
+        ctx.font = "14px Arial";
+        sortedColors.forEach((color, index) => {
+          // 计算当前项位置
+          const row = Math.floor(index / itemsPerRow);
+          const col = index % itemsPerRow;
+          const x = statsStartX + col * itemWidth;
+          const y = statsStartY + row * itemHeight;
 
-  // 计算需要绘制的水印行数和列数
-  const wmCols = Math.ceil(width / spacing) + 1;
-  const wmRows = Math.ceil(height / spacing) + 1;
+          // 绘制颜色块
+          ctx.fillStyle = `rgb(${color.rgb[0]}, ${color.rgb[1]}, ${color.rgb[2]})`;
+          ctx.fillRect(x, y, 18, 18);
 
-  // 绘制重复水印
-  for (let i = -wmRows; i < wmRows; i++) {
-    for (let j = -wmCols; j < wmCols; j++) {
-      const x = j * spacing;
-      const y = i * spacing;
-      ctx.fillText(watermarkText, x, y);
+          // 绘制色号和数量
+          ctx.fillStyle = "#000000";
+          ctx.fillText(`${color.code}:${color.count}颗`, x + 25, y + 3);
+        });
+      }
+
+      // 添加斜向重复水印
+      ctx.save();
+      ctx.fillStyle = "rgba(150, 150, 150, 0.5)";
+      ctx.font = "bold 24px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      const watermarkText = "@Dro9an";
+      const angle = Math.PI / 6; // 30度
+      const textWidth = ctx.measureText(watermarkText).width;
+      const spacing = Math.max(textWidth, 100) * 1.5;
+
+      // 平移原点到分片中心，方便旋转
+      ctx.translate(width / 2, height / 2);
+      ctx.rotate(angle);
+
+      const wmCols = Math.ceil(width / spacing) + 1;
+      const wmRows = Math.ceil(height / spacing) + 1;
+      for (let i = -wmRows; i < wmRows; i++) {
+        for (let j = -wmCols; j < wmCols; j++) {
+          ctx.fillText(watermarkText, j * spacing, i * spacing);
+        }
+      }
+      ctx.restore();
+
+      tileUrls.push(canvas.toDataURL("image/png"));
     }
   }
 
-  // 恢复旋转状态
-  ctx.restore();
-
-  // 返回最终图纸URL
-  return canvas.toDataURL("image/png");
+  // 返回所有分片的URL（未超限时数组长度为 1）
+  return tileUrls;
 };
 

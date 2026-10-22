@@ -1,14 +1,23 @@
 <template>
   <el-dialog v-model="visible" title="图纸预览（图纸内含豆子统计，点击图片查看大图）" width="920px">
-    <!-- 图纸预览（统计信息已绘制在图纸内） -->
+    <!-- 图纸预览（大图纸自动分片，逐张展示） -->
     <div class="preview-area">
-      <el-image
-        class="preview-image"
-        :src="patternUrl"
-        :preview-src-list="[patternUrl]"
-        alt="拼豆图纸预览"
-        v-if="patternUrl"
-      />
+      <div
+        v-for="(url, index) in patternUrls"
+        :key="index"
+        class="preview-tile"
+      >
+        <p v-if="patternUrls.length > 1" class="tile-caption">
+          第 {{ index + 1 }} / {{ patternUrls.length }} 张
+        </p>
+        <el-image
+          class="preview-image"
+          :src="url"
+          :preview-src-list="patternUrls"
+          :initial-index="index"
+          alt="拼豆图纸预览"
+        />
+      </div>
     </div>
 
     <template #footer>
@@ -34,10 +43,10 @@ import { ElMessage } from "element-plus";
 const visible = defineModel({ type: Boolean, default: false });
 
 const props = defineProps({
-  // 最终图纸URL（由 App.vue 调用 patternGenerator 生成）
-  patternUrl: {
-    type: String,
-    default: "",
+  // 图纸分片URL列表（由 App.vue 调用 patternGenerator 生成，未超限时长度为 1）
+  patternUrls: {
+    type: Array,
+    default: () => [],
   },
   // 图纸尺寸类型（如 52x52，用于下载文件名）
   sizeType: {
@@ -56,20 +65,44 @@ const props = defineProps({
   },
 });
 
-// 下载图纸（预览图即图纸，点击下载时按当前配置拼接文件名）
+// 下载图纸（多张分片时加间隔逐张触发，避免被浏览器拦截）
 const downloadPattern = () => {
-  if (!props.patternUrl) return;
+  const urls = props.patternUrls;
+  if (!urls.length) return;
 
-  const link = document.createElement("a");
-  link.download = `拼豆图纸-${props.sizeType}-${props.colorCount}色-${props.fileName.split(".")[0]}.png`;
-  link.href = props.patternUrl;
-  link.click();
+  const total = urls.length;
+  const baseName = `拼豆图纸-${props.sizeType}-${props.colorCount}色-${props.fileName.split(".")[0]}`;
+
+  urls.forEach((url, index) => {
+    setTimeout(() => {
+      const link = document.createElement("a");
+      link.download =
+        total > 1 ? `${baseName}-${index + 1}of${total}.png` : `${baseName}.png`;
+      link.href = url;
+      link.click();
+    }, index * 300);
+  });
 
   ElMessage.success("发射成功🚀！看看有没有开始下啦");
 };
 </script>
 
 <style scoped>
+.preview-tile {
+  margin-bottom: 15px;
+}
+
+.preview-tile:last-child {
+  margin-bottom: 0;
+}
+
+.tile-caption {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: #606266;
+  text-align: center;
+}
+
 .preview-image {
   width: 100%;
   height: auto;
