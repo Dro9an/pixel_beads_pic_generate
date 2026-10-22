@@ -79,7 +79,11 @@
 
     <footer>
       <p>
-        © 2025-{{ new Date().getUTCFullYear() }} Dro9an. All rights reserved.
+        © 2025-{{ new Date().getUTCFullYear() }}
+        <el-link href="https://dro9an.top" target="_blank">
+          Dro9an.
+        </el-link>
+        All rights reserved.
       </p>
       <p>Made with ❤️</p>
     </footer>
