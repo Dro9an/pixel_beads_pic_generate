@@ -71,14 +71,14 @@
     <!-- 图纸预览&豆子数量统计弹窗（仅通过图纸URL展示预览与下载） -->
     <PreviewModal
       v-model="dialogVisible"
-      :pattern-url="patternUrl"
+      :pattern-urls="patternUrls"
       :size-type="selectedSizeType"
       :color-count="colorConfig.count"
       :file-name="fileName"
     />
 
     <footer>
-      <p>
+      <p style="font-size: 14px">
         © 2025-{{ new Date().getUTCFullYear() }}
         <el-link href="https://dro9an.top" target="_blank">
           Dro9an.
@@ -105,7 +105,7 @@ const fileName = ref("");
 const currentSize = ref({ width: 20, height: 20 });
 const generating = ref(false);
 const selectedSizeType = ref("52x52");
-const patternUrl = ref("");
+const patternUrls = ref([]);
 const dialogVisible = ref(false);
 
 // 颜色配置
@@ -140,8 +140,8 @@ const handleGenerate = async () => {
   generating.value = true;
 
   try {
-    // 生成最终图纸URL
-    patternUrl.value = await generatePattern(
+    // 生成图纸分片URL列表
+    patternUrls.value = await generatePattern(
       imageUrl.value,
       currentSize.value.width,
       currentSize.value.height,
@@ -234,5 +234,10 @@ footer {
   margin-top: 30px;
   color: #909399;
   font-size: 0.9em;
+}
+
+/* el-link 自带 vertical-align: middle，与普通文本基线不一致，覆盖为基线对齐 */
+footer .el-link {
+  vertical-align: baseline;
 }
 </style>
