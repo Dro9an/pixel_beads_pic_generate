@@ -2,13 +2,18 @@
   <div class="app-container">
     <header class="app-header">
       <h1>MARD拼豆图纸生成器</h1>
-      <p>1.上传图片 2.选择尺寸与色系 3.生成and enjoy!</p>
+      <p>
+        1.上传图片&nbsp;&nbsp;&nbsp;2.选择尺寸与色系&nbsp;&nbsp;&nbsp;3.生成 and enjoy!
+      </p>
     </header>
 
     <main>
       <!-- 图像上传 -->
       <section class="upload-section">
         <ImageUpload @image-uploaded="handleImageUploaded" />
+        <div class="tips">
+          图纸生成直接在本机运行，图片不会被上传到任何服务器进行收集或处理
+        </div>
       </section>
 
       <!-- 尺寸选择和控制 -->
@@ -80,9 +85,7 @@
     <footer>
       <p style="font-size: 14px">
         © 2025-{{ new Date().getUTCFullYear() }}
-        <el-link href="https://dro9an.top" target="_blank">
-          Dro9an.
-        </el-link>
+        <el-link href="https://dro9an.top" target="_blank"> Dro9an. </el-link>
         All rights reserved.
       </p>
       <p>Made with ❤️</p>
@@ -204,8 +207,13 @@ main {
 
 /* 上传区域 */
 .upload-section {
-  margin-bottom: 30px;
   text-align: center;
+}
+
+.upload-section .tips {
+  color: #909399;
+  font-size: 0.8em;
+  margin: 10px;
 }
 
 /* 控制区域 */
