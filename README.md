@@ -1,4 +1,5 @@
 # MARD拼豆图纸生成器
+[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/Dro9an/badge.svg)](https://hub.xerj.org/contributors/Dro9an)
 
 技术栈：Vue3+Element plus
 
